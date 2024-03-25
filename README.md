@@ -4,7 +4,7 @@ The `SIESTA` code is a Python tool developed to statistically fit the global par
 
 The current version of the code uses isochrones from the [PARSEC-COLIBRI database](http://stev.oapd.inaf.it/cgi-bin/cmd) (version 3.7) and is optimized for CMDs in the $V-I \times V$ bands. We plan on including more flexibility in the photometric system and stellar model choices in future versions of the code.
 
-## Licensing and referencing `SIESTA`
+## Using and referencing `SIESTA`
 
 `SIESTA` is available in the XXX license (more details in LICENSE). If you use SIESTA, we only ask that you cite the original paper:
 
