@@ -1,4 +1,4 @@
-# `SIESTA`: Statistical matchIng between rEal and Synthetic sTellaR PopulAtions
+# `SIESTA`: Statistical matchIng between rEal and Synthetic sTellar PopulAtions
 
 The `SIESTA` code is a Python tool developed to statistically fit the global parameters of star clusters, i.e., their metallicities, ages, distances, color excesses, and binary fractions. The code is based on the comparison between the stellar distribution in the observed color-magnitude diagram (CMD) and distributions from synthetic populations. A complete description of the code can be found at this reference (_insert reference later_).
 
