@@ -14,7 +14,7 @@ Insert @bibtex here
 
 ## Setting up your environment
 
-To run `SIESTA` you will need several Python libraries. For [Anaconda](https://anaconda.org/) users, we provide the `siesta.yml` file to set up an environment to run the code. You can do that by running, in a terminal with Anaconda activate:
+To run `SIESTA` properly you will need several Python libraries. For [Anaconda](https://anaconda.org/) users, we provide the `siesta.yml` file to set up an environment to run the code. You can do that by running, in a terminal with Anaconda activate:
 
 ```
 conda env create -f siesta.yml
