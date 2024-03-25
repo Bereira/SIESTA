@@ -1,5 +1,1 @@
-# CANASTRA: statistiCal mAtching betweeN reAl and Synthetic StellaR PopulAtions
-
-
-
-
+# SIESTA: Statistical matchIng between rEal and Synthetic sTellaR PopulAtions
