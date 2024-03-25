@@ -20,7 +20,7 @@ To run `SIESTA` properly you will need several Python libraries. For [Anaconda](
 conda env create -f siesta.yml
 ```
 
-You can then activate the enviroment by running:
+You can then activate the environment by running:
 
 ```
 conda activate siesta
@@ -36,7 +36,7 @@ After downloading the isochrones you can run `CreateIsochoneGrid.py` to store th
 
 ## Characterizing a star cluster
 
-To characterize a given star cluster, start by running `Initialization.ipynb` IPython Notebook, where you'll define all the necessary inputs for performing the Markov Chain Monte Carlo (MCMC) sampling. 
+To characterize a given star cluster, start by running `Initialization.ipynb` Jupyter Notebook, where you'll define all the necessary inputs for performing the Markov Chain Monte Carlo (MCMC) sampling. 
 
 After running the Notebook, you can start the MCMC sampling by running:
 
@@ -44,9 +44,9 @@ After running the Notebook, you can start the MCMC sampling by running:
 python RunMCMCsampling.py PROJECT_NAME
 ```
 
-replacing `PROJECT_NAME` by the name of your current project (defined in the `Initialization.ipynb` Notebook). 
-x
-**Important warning for Windows users**: the parallelization employed by the `SIESTA` code does not work properly when running the code in Windows machines. We recommend using the [Windows Subsystem for Linux](https://ubuntu.com/desktop/wsl) if you are a Windows user.
+replacing `PROJECT_NAME` with the name of your current project (defined in the `Initialization.ipynb` Notebook). 
+
+**Important warning for Windows users**: the parallelization employed by the `SIESTA` code does not work properly when running the code on Windows machines. We recommend using the [Windows Subsystem for Linux](https://ubuntu.com/desktop/wsl) if you are a Windows user.
 
 To check your results after (or during) the sampling process, run the `ChainAnalysis.ipynb` Notebook. Keep in mind that for running this Notebook without issues, your MCMC chain must have, at least, 200 iterations. 
 
