@@ -45,6 +45,8 @@ python RunMCMCsampling.py PROJECT_NAME
 ```
 
 replacing `PROJECT_NAME` by the name of your current project (defined in the `Initialization.ipynb` Notebook). 
+x
+**Important warning for Windows users**: the parallelization employed by the `SIESTA` code does not work properly when running the code in Windows machines. We recommend using the [Windows Subsystem for Linux](https://ubuntu.com/desktop/wsl) if you are a Windows user.
 
 To check your results after (or during) the sampling process, run the `ChainAnalysis.ipynb` Notebook. Keep in mind that for running this Notebook without issues, your MCMC chain must have, at least, 200 iterations. 
 
