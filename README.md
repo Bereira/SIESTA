@@ -2,7 +2,7 @@
 
 The `SIESTA` code is a Python tool developed to statistically fit the global parameters of star clusters, i.e., their metallicities, ages, distances, color excesses, and binary fractions. The code is based on the comparison between the stellar distribution in the observed color-magnitude diagram (CMD) and distributions from synthetic populations. A complete description of the code can be found at this reference (_insert reference later_).
 
-The current version of the code uses isochrones from the [PARSEC-COLIBRI database](http://stev.oapd.inaf.it/cgi-bin/cmd) (version 3.7) and is optimized for CMDs in the $V-I \times V$ bands. We plan on including more flexibility in the photometric system and stellar model choice in future versions of the code.
+The current version of the code uses isochrones from the [PARSEC-COLIBRI database](http://stev.oapd.inaf.it/cgi-bin/cmd) (version 3.7) and is optimized for CMDs in the $V-I \times V$ bands. We plan on including more flexibility in the photometric system and stellar model choices in future versions of the code.
 
 ## Licensing and referencing `SIESTA`
 
