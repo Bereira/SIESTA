@@ -6,6 +6,7 @@ channels:
 dependencies:
   - python=3.11.4
   - ipython=8.12.2
+  - ipykernel=6.25.0
   - conda-forge::astropy=5.1
   - conda-forge::emcee=3.1.4
   - h5py=3.9.0

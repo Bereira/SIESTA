@@ -32,10 +32,10 @@ ColorBand2_points_rolling_mean:	30
 MagBand_quantile:	0.5
 ColorBand1_quantile:	0.5
 ColorBand2_quantile:	0.5
-Error_coefficients:	{'MagBand': array([5.40346874e-10, 8.28955450e-01, 6.33923711e-03]), 'ColorBand1': array([5.40346874e-10, 8.28955450e-01, 6.33923711e-03]), 'ColorBand2': array([2.52736245e-10, 9.07550916e-01, 1.41256552e-02])}
+Error_coefficients:	{'MagBand': array([5.40346638e-10, 8.28955468e-01, 6.33923818e-03]), 'ColorBand1': array([5.40346638e-10, 8.28955468e-01, 6.33923818e-03]), 'ColorBand2': array([2.52736173e-10, 9.07550928e-01, 1.41256563e-02])}
 Initial_population_size:	50000
 Companion_min_mass_fraction:	0.6
 Seed:	1
-Priors:	{'Metallicity': {'Type': 'Box', 'Parameters': [-1, 0.0]}, 'Age': {'Type': 'Box', 'Parameters': [6, 10.15]}, 'Distance': {'Type': 'Box', 'Parameters': [48, 90]}, 'ExtinctionPar': {'Type': 'Box', 'Parameters': [0.0, 0.4]}, 'BinFraction': {'Type': 'LogNormal', 'Parameters': [-1.715, 0.5, 0.0, 0.95]}}
+Priors:	{'Metallicity': {'Type': 'Box', 'Parameters': [-2, 0.5]}, 'Age': {'Type': 'Box', 'Parameters': [6, 10.15]}, 'Distance': {'Type': 'Box', 'Parameters': [50, 90]}, 'ExtinctionPar': {'Type': 'Box', 'Parameters': [0.0, 0.4]}, 'BinFraction': {'Type': 'LogNormal', 'Parameters': [-1.715, 0.5, 0.0, 0.95]}}
 Max_iterations:	20000
 Walkers_start:	{'Metallicity': {'Minimum': -0.41, 'Maximum': -0.42, 'Number': 3}, 'Age': {'Minimum': 7.59, 'Maximum': 7.61, 'Number': 3}, 'Distance': {'Minimum': 59, 'Maximum': 59.5, 'Number': 3}, 'ExtinctionPar': {'Minimum': 0.06, 'Maximum': 0.08, 'Number': 2}, 'BinFraction': {'Minimum': 0.09, 'Maximum': 0.1, 'Number': 2}}

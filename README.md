@@ -26,7 +26,21 @@ You can then activate the environment by running:
 conda activate siesta
 ```
 
-Alternatively, you can open the `siesta.yml` and download each library manually. You will also need to be able to run [Jupyter Notebooks](https://jupyter.org/) in your computer.
+Alternatively, you can open the `siesta.yml` and download each library manually. 
+
+You will also need to be able to run [Jupyter Notebooks](https://jupyter.org/) in your computer. If you don't have it already installed, you can download it by running, with the `siesta` enviroment activated:
+
+```
+conda install jupyter
+```
+
+Which will allow you to use the Notebooks in this enviroment by running:
+
+
+```
+jupyter notebook
+```
+
 
 ## Downloading isochrones
 
