@@ -7,7 +7,7 @@ from multiprocessing import Pool
 from  emcee import EnsembleSampler
 from emcee.moves import StretchMove
 from pandas import read_csv
-from numpy import inf,mean,absolute,savetxt,concatenate,loadtxt,isfinite
+from numpy import inf,mean,absolute,savetxt,loadtxt,isfinite
 from os import environ
 
 

@@ -627,7 +627,7 @@ def SyntheticPopulation(clusterCMD,ClusterGrid,inputs,isochroneIndex,pop_params)
     syntCMD['Keep'] =  PopulationSamplesRN[:len(syntCMD),2] <= syntCMD['Completeness']
     #Final population
     finalCMD = syntCMD[syntCMD['Keep']].copy()
-    #Dispalce isochrone
+    #Displace isochrone
     mu = 5*log10( d*1000 ) - 5 + extpar*inputs['ExtinctionLaw']['MagCorrection']
     CE = extpar*(inputs['ExtinctionLaw']['ColorCorrection1']-inputs['ExtinctionLaw']['ColorCorrection2'])
     iso['AppMag'] = iso[magIso] + mu
