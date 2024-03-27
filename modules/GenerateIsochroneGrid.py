@@ -35,15 +35,15 @@ def Run(DownloadedModelsPath, IsochronesPath, HeaderSize, FilterColumns, ClipLat
                 #Select data from specific isochrone
                 data_iso = data[ (data['MH'] == mh) & (data['logAge'] == logAge)]
                 #Select columns
-                if FilterColumns == 'yes':
-                    data_iso = data_iso.loc[:,['Mini','Mass','label','Vmag','Imag']]
+                if FilterColumns != 'no':
+                    data_iso = data_iso.loc[:,FilterColumns]
                 #Select rows
                 if ClipLateEvolution == 'yes':
                     data_iso = data_iso[data_iso['label']<=7]           
                 #File name
                 filename = 'MH{:.2f}_logAge{:.2f}'.format(mh,logAge).replace('-','n').replace('.','d')
-                #Filter file
-                data_iso.to_csv('{}/{}.dat'.format(IsochronesPath,filename))
+                #Save file
+                data_iso.reset_index(drop=True).to_csv('{}/{}.dat'.format(IsochronesPath,filename))
                 index[mh][logAge] = filename
     #Save index
     with open('{}/index.pkl'.format(IsochronesPath), "wb") as out_file:

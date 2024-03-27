@@ -1,31 +1,25 @@
-#jfsaflksdfalskfhlaksdjfhjkl
-
-
 #Import custom modules
-import sys ;  sys.path.append('scripts')
-import SIESTAmodules
+import sys ;  sys.path.append('modules')
+import MCMCsampling
 #Import usefull libraries
 from pandas import DataFrame,read_csv
 from multiprocessing import Pool
 from  emcee import EnsembleSampler
-from emcee.moves import DESnookerMove,DEMove,KDEMove,GaussianMove,StretchMove,WalkMove
+from emcee.moves import StretchMove
 from pandas import read_csv
-from numpy import inf,mean,absolute,savetxt,concatenate,loadtxt,isfinite,log,nan_to_num,errstate
-from numpy.random import randint
-from sklearn.neighbors import NearestNeighbors
+from numpy import inf,mean,absolute,savetxt,concatenate,loadtxt,isfinite
 from os import environ
-from scipy.stats import binned_statistic_2d
 
 
 def logPosterior(parameters):
     #Get parameters
-    raw_mh,raw_age,d,red,binf = parameters
+    raw_mh,raw_age,d,extpar,binf = parameters
     #Evaluate priors
     logPrior = 0 
     logPrior += Prior_Metallicity(raw_mh,inputs['Priors']['Metallicity']['Parameters']) 
     logPrior += Prior_Age(raw_age,inputs['Priors']['Age']['Parameters']) 
     logPrior += Prior_Distance(d,inputs['Priors']['Distance']['Parameters']) 
-    logPrior += Prior_Reddening(red,inputs['Priors']['Reddening']['Parameters']) 
+    logPrior += Prior_ExtPar(extpar,inputs['Priors']['ExtinctionPar']['Parameters']) 
     logPrior += Prior_BinFraction(binf,inputs['Priors']['BinFraction']['Parameters'])
     #Fork: finite prior
     if isfinite(logPrior):
@@ -36,39 +30,37 @@ def logPosterior(parameters):
         isochrone = read_csv('{}/{}.dat'.format(inputs['Grid_path'],isochroneIndex[mh][age]).replace('\\','/'),sep=',')
         #Create the population
         syntCMD = DataFrame()
-        SIESTAmodules.SyntheticPopulation.Generator(syntCMD,
-                                                     isochrone.copy(), 
-                                                     inputs['Initial_population_size'],
-                                                     binf, 
-                                                     inputs['Companion_min_mass_fraction'],
-                                                     d,red,
-                                                     inputs['Photometric_limit'],
-                                                     inputs['Error_coefficients'], 
-                                                     inputs['Completeness_Fermi'],
-                                                     PopulationSamplesRN, PhotometricErrorRN)
+        MCMCsampling.SyntheticPopulation.Generator(syntCMD,
+                                                    isochrone.copy(), 
+                                                    inputs['Initial_population_size'],
+                                                    binf, inputs['Companion_min_mass_fraction'],
+                                                    d,extpar,inputs['ExtinctionLaw'],
+                                                    inputs['IsochroneColumns'],inputs['Bands_Obs_to_Iso'],
+                                                    inputs['Photometric_limit'],
+                                                    inputs['Error_coefficients'], 
+                                                    inputs['Completeness_Fermi'],
+                                                    PopulationSamplesRN, PhotometricErrorRN)
         #Use the estimator to evaluate the population density
-        SyntheticGrid = SIESTAmodules.Distribution.Evaluate(inputs['Edges_color'], inputs['Edges_magnitude'],
-                                                             syntCMD['Vfilled']-syntCMD['Ifilled'], syntCMD['Vfilled'],
-                                                             renorm_factor=inputs['Cluster_size']/len(syntCMD))
+        SyntheticGrid = MCMCsampling.Distribution.Evaluate(inputs['Edges_color'], inputs['Edges_magnitude'],
+                                                           syntCMD[SyntColl1Band]-syntCMD[SyntColl2Band], syntCMD[SyntMagBand],
+                                                           renorm_factor=inputs['Cluster_size']/len(syntCMD))
         #Likelihood
-        logLikelihood = SIESTAmodules.MCMCsupport.LikelihoodCalculator(ClusterGrid,
-                                                                         SyntheticGrid,
-                                                                         inputs['Temperature'],WeightsGrid) 
+        logLikelihood = MCMCsampling.MCMCsupport.LikelihoodCalculator(ClusterGrid, SyntheticGrid)
     #Fork: if not in range
     else:
         #Negative infinite likelihood
         logLikelihood = 0
     #Return likelihood
-    return logLikelihood + logPrior/inputs['Temperature']
+    return logLikelihood + logPrior
 
 
 # INITIALIZATION
 #Get inputs and create MCMC backend
-inputs,backend,autocorr_timeOLD, answer = SIESTAmodules.Initialization.Start()
+inputs,backend = MCMCsampling.Initialization.Start()
 #Index for isochrones
-isochroneIndex,_,_ = SIESTAmodules.Initialization.GetIsochroneIndex(inputs['Grid_path'])
+isochroneIndex,_,_ = MCMCsampling.Initialization.GetIsochroneIndex(inputs['Grid_path'])
 #Create random numbers for the synthetic populations
-PopulationSamplesRN, PhotometricErrorRN = SIESTAmodules.Initialization.RandomNumberStarter(inputs['Initial_population_size'],inputs['Seed'])
+PopulationSamplesRN, PhotometricErrorRN = MCMCsampling.Initialization.RandomNumberStarter(inputs['Initial_population_size'], inputs['ObsCatalogColumns'],inputs['Seed'])
 
 
 #CLUSTER DATA
@@ -78,29 +70,19 @@ ClusterGrid = loadtxt( 'projects/{}/ClusterGrid.dat'.format(inputs['Project_name
 cluster_size = inputs['Cluster_size']
 #Import filtered CMD
 clusterCMD = read_csv('projects/{}/FilteredCMD.dat'.format(inputs['Project_name']),sep=',')
-#Import Weights
-WeightsGrid = loadtxt( 'projects/{}/WeightsGrid.dat'.format(inputs['Project_name']))
 
-
-'''
-with errstate(divide='ignore', invalid='ignore'):
-    membWeight =  binned_statistic_2d(clusterCMD['V-I'], clusterCMD['V'], clusterCMD['memb'],statistic='sum',
-                                  bins=[inputs['Edges_color'], inputs['Edges_magnitude']]).statistic.T / binned_statistic_2d(clusterCMD['V-I'], clusterCMD['V'], clusterCMD['memb'],statistic='count',
-                                  bins=[inputs['Edges_color'], inputs['Edges_magnitude']]).statistic.T 
-
-membWeight = nan_to_num(membWeight,nan=1)
-'''
-
-
-#MCMC
-#Warn when running a tempered chain
-if inputs['Temperature'] >1 : print('WARNING! Running with a tempered likelihood')
+#MCMC SAMPLING
 print('MCMC calculations...')
 #Initialize walkers
-walkers_start_position = SIESTAmodules.MCMCsupport.WalkersStartPosition(inputs['Walkers_start'],answer,backend)  
+walkers_start_position = MCMCsampling.MCMCsupport.WalkersStartPosition(inputs['Walkers_start'])  
 #Get priors
-Prior_Metallicity,Prior_Age,Prior_Distance,Prior_Reddening,Prior_BinFraction = SIESTAmodules.MCMCsupport.DefinePriors(inputs['Priors'])
+Prior_Metallicity,Prior_Age,Prior_Distance,Prior_ExtPar,Prior_BinFraction = MCMCsampling.MCMCsupport.DefinePriors(inputs['Priors'])
 
+#DEFINE COLUMN NAMES
+SyntMagBand = '{}_filled'.format(inputs['IsochroneColumns']['MagBand'] )
+SyntColl1Band = '{}_filled'.format(inputs['IsochroneColumns']['ColorBand1'] )
+SyntColl2Band = '{}_filled'.format(inputs['IsochroneColumns']['ColorBand2'] )
+                                 
 #Index and autocorrelation vector
 index = 0
 autocorr_time = []
@@ -132,7 +114,7 @@ if __name__ == '__main__':
             #Acceptance fractioin
             af = sampler.acceptance_fraction
             #Convergence tests
-            converged = all(tau * 27 < sampler.iteration)
+            converged = all(tau * 50 < sampler.iteration)
             converged &= all(absolute(tauOLD - tau) / tau < 0.01)
             #Interact 
             i = sampler.iteration
@@ -143,8 +125,7 @@ if __name__ == '__main__':
             print('\t Increment: {}%'.format( (tau-tauOLD)/tau*100 ) )
             print('\t Chain size: {} autocorrelation times'.format(i/tau))
             #Save correlation time
-            savetxt( 'projects/{}/autocorrelation.dat'.format(inputs['Project_name']),
-                    concatenate([autocorr_timeOLD,autocorr_time]))
+            savetxt( 'projects/{}/autocorrelation.dat'.format(inputs['Project_name']),autocorr_time)
             if converged:
                 break
             tauOLD = tau
