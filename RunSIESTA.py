@@ -24,8 +24,8 @@ def logPosterior(parameters):
     #Fork: finite prior
     if isfinite(logPrior):
         #Round metallicity and age (since the grid has discrete values)
-        mh = round(raw_mh,2)
-        age = round(raw_age,2)
+        mh = MCMCsampling.Auxiliary.Round_to_Reference(raw_mh,mh_list)
+        age = MCMCsampling.Auxiliary.Round_to_Reference(raw_age,age_list)
         #Import isochrone
         isochrone = read_csv('{}/{}.dat'.format(inputs['Grid_path'],isochroneIndex[mh][age]).replace('\\','/'),sep=',')
         #Create the population
@@ -58,7 +58,7 @@ def logPosterior(parameters):
 #Get inputs and create MCMC backend
 inputs,backend = MCMCsampling.Initialization.Start()
 #Index for isochrones
-isochroneIndex,_,_ = MCMCsampling.Initialization.GetIsochroneIndex(inputs['Grid_path'])
+isochroneIndex,mh_list,age_list = MCMCsampling.Initialization.GetIsochroneIndex(inputs['Grid_path'])
 #Create random numbers for the synthetic populations
 PopulationSamplesRN, PhotometricErrorRN = MCMCsampling.Initialization.RandomNumberStarter(inputs['Initial_population_size'], inputs['ObsCatalogColumns'],inputs['Seed'])
 
@@ -72,7 +72,7 @@ cluster_size = inputs['Cluster_size']
 clusterCMD = read_csv('projects/{}/FilteredCMD.dat'.format(inputs['Project_name']),sep=',')
 
 #MCMC SAMPLING
-print('MCMC calculations...')
+print('MCMC sampling...')
 #Initialize walkers
 walkers_start_position = MCMCsampling.MCMCsupport.WalkersStartPosition(inputs['Walkers_start'])  
 #Get priors
@@ -124,11 +124,15 @@ if __name__ == '__main__':
             print('\t Autocorrelation times: {}'.format(tau))
             print('\t Increment: {}%'.format( (tau-tauOLD)/tau*100 ) )
             print('\t Chain size: {} autocorrelation times'.format(i/tau))
+            print('You can check partial results in the ChainAnalysis Notebook')
+            print('\t  (remember to wait at least 200 iterations)')
             #Save correlation time
             savetxt( 'projects/{}/autocorrelation.dat'.format(inputs['Project_name']),autocorr_time)
             if converged:
                 break
             tauOLD = tau
+        #Interact
+        print('All done! Check the ChainAnalysis Notebook to see your results')
 
             
         

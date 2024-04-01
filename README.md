@@ -2,11 +2,11 @@
 
 The `SIESTA` code is a Python tool developed to statistically fit the global parameters of star clusters, i.e., their metallicities, ages, distances, color excesses, and binary fractions. The code is based on the comparison between the stellar distribution in the observed color-magnitude diagram (CMD) and distributions from synthetic populations. A complete description of the code can be found at this reference (_insert reference later_).
 
-The current version of the code uses isochrones from the [PARSEC-COLIBRI database](http://stev.oapd.inaf.it/cgi-bin/cmd) (version 3.7) and is optimized for CMDs in the $V-I \times V$ bands. We plan on including more flexibility in the photometric system and stellar model choices in future versions of the code.
+The current version of the code uses isochrones from the [PARSEC-COLIBRI database](http://stev.oapd.inaf.it/cgi-bin/cmd) (version 3.7). We plan on including more flexibility in the choice of stellar models in future versions of the code.
 
 ## Using and referencing `SIESTA`
 
-`SIESTA` is available in the XXX license (more details in LICENSE). If you use SIESTA, we only ask that you cite the original paper:
+`SIESTA` is available in the XXX license (more details in the LICENSE file). If you use SIESTA, we kindly ask that you cite the original paper:
 
 ```
 Insert @bibtex here
@@ -52,7 +52,7 @@ After downloading the isochrones you can run `CreateIsochoneGrid.py` to store th
 
 To characterize a given star cluster, start by running `Initialization.ipynb` Jupyter Notebook, where you'll define all the necessary inputs for performing the Markov Chain Monte Carlo (MCMC) sampling. 
 
-After running the Notebook, you can start the MCMC sampling by running:
+After running the Notebook, you can perform the MCMC sampling by running:
 
 ```
 python RunMCMCsampling.py PROJECT_NAME
@@ -66,3 +66,7 @@ To check your results after (or during) the sampling process, run the `ChainAnal
 
 The `SIESTA` code uses the [``multiprocessing``](https://docs.python.org/3/library/multiprocessing.html) package for parallelism during the MCMC sampling. The current implementation of the code is not stable on Windows machines. While running the Notebooks is perfectly safe on Windows, running the MCMCsampling will likely lead to crashes. If you intend on executing SIESTA on a Windows machine, we recommend using [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install).
 
+
+## Example
+
+We provide, in this repository, a decontaminated catalog in the $VI$ bands for the cluster [Lindsay 113](http://simbad.cds.unistra.fr/simbad/sim-basic?Ident=Lindsay+113&submit=SIMBAD+search), observed by the [VISCACHA](http://www.astro.iag.usp.br/~viscacha/), as well as a set of isochrones. These are meant to be used as examples: all Notebooks come filled so that you can simply run them for this cluster. You can also change some parameters to see what changes. Hopefully this will help you gain some intuition obn how to use `SIESTA` in your own work. Once you feel confident with your ability to run the code, feel free to delete the examples.
