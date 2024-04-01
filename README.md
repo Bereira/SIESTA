@@ -6,7 +6,7 @@ The current version of the code uses isochrones from the [PARSEC-COLIBRI databas
 
 ## Using and referencing `SIESTA`
 
-`SIESTA` is available in the XXX license (more details in the LICENSE file). If you use SIESTA, we kindly ask that you cite the original paper:
+`SIESTA` is available in the GNU General Public License, version 3.0 (more details in the LICENSE file). If you use SIESTA, we kindly ask that you cite the original paper:
 
 ```
 Insert @bibtex here
