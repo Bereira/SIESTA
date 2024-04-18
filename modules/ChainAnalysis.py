@@ -476,8 +476,7 @@ def MaginalPosterior(samplesIn,inputs,labels,bins,quantiles_min,quantiles_max,ti
     axCMD2.scatter(syntCMD[colIso],syntCMD[magIso],c='tab:green',marker='.',label='Synt. pop.',rasterized=True)
     axCMD2.scatter(clusterCMD[colObs],clusterCMD[magObs],c='tab:orange',marker='.',label='Cluster',rasterized=True)
     axCMD2.plot(isomini['AppColor'],isomini['AppMag'],c='k',ls='--')
-    #axCMD2.legend()
-    axCMD2.get_shared_y_axes().join(axCMD1, axCMD2) ; axCMD2.autoscale()
+    axCMD2.sharey(axCMD1) ; axCMD2.autoscale()
     #SHARED DETAILS
     for ax in (axCMD1,axCMD2):
         ax.set_xlabel(r'${}$'.format(colObs))
