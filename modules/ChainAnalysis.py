@@ -101,7 +101,7 @@ def Samples(backend,inputs,Filter=True,walkers_show=1):
     #Number of walkers
     walker_num = len(samples[0,:,0])
     #Create figure
-    fig, ax = plt.subplots(nrows=6,ncols=1,figsize=(9,8),sharex=True,constrained_layout=True)
+    fig, ax = plt.subplots(nrows=6,ncols=1,figsize=(7,5),sharex=True,constrained_layout=True)
     #Evaluate walkers step
     walkers_step = walker_num//walkers_show
     #Iterate over walkers
@@ -289,8 +289,8 @@ def MaginalPosterior(samplesIn,inputs,labels,bins,quantiles_min,quantiles_max,ti
             #Use median instead
             fit_value[i] = median(samples[i])
             fit_error[i] = std(samples[i])
-            ax[i][i].axvline(fit_value[i],zorder=2,c='tab:blue',ls='--')
-            ax[i][i].axvspan(fit_value[i]-0.5*fit_error[i],fit_value[i]+0.5*fit_error[i],zorder=2,color='tab:blue',alpha=0.5,ls='--')
+            ax[i][i].axhline(fit_value[i],zorder=2,c='tab:blue',ls='--')
+            ax[i][i].axhspan(fit_value[i]-0.5*fit_error[i],fit_value[i]+0.5*fit_error[i],zorder=2,color='tab:blue',alpha=0.5,ls='--')
         #Plot priors
         if (i == 1)&(age_plot=='Gyr'):
             yp = exp([ priors[i](log10(xxx)+9, inputs['Priors'][indexes[i]]['Parameters'] ) for xxx in xx])
@@ -304,13 +304,14 @@ def MaginalPosterior(samplesIn,inputs,labels,bins,quantiles_min,quantiles_max,ti
         #Details
         ax[i][i].yaxis.tick_right()
         ax[i][i].yaxis.set_label_position("right")
-        ax[i][i].yaxis.set_ticklabels([])
         ax[i][i].xaxis.tick_top()
         ax[i][i].xaxis.set_label_position("top")
         ax[i][i].set_xlim(ax[i][i].get_xlim()[::-1])
         ax[i][i].set_ylim(lim[i][0],lim[i][1])
         ax[i][i].tick_params(axis="both",which='both',direction="in")
-        if i<sampleNum-1:ax[i][i].tick_params(labelleft=False)
+        if i<sampleNum-1: 
+            ax[i][i].yaxis.set_ticklabels([])
+            ax[i][i].tick_params(labelleft=False)
     ax[sampleNum-1][sampleNum-1].set_ylabel(labels[-1])
     #
     # 2D MARGINALIZED POSTERIORS
@@ -329,10 +330,11 @@ def MaginalPosterior(samplesIn,inputs,labels,bins,quantiles_min,quantiles_max,ti
             if i == 0: ax[i][j].set_xlabel(labels[j])
             else: ax[i][j].tick_params(labelbottom=False)
             #Side
-            ax[i][j].yaxis.tick_right()
-            ax[i][j].yaxis.set_label_position("right")
-            ax[i][j].xaxis.tick_top()
-            ax[i][j].xaxis.set_tick_params(rotation=45)
+            if i != j:
+                ax[i][j].yaxis.tick_right()
+                ax[i][j].yaxis.set_label_position("right")
+                ax[i][j].xaxis.tick_top()
+                ax[i][j].xaxis.set_tick_params(rotation=45)
             for tick in ax[i][j].xaxis.get_majorticklabels():
                 tick.set_horizontalalignment("left")
             ax[i][j].xaxis.set_label_position("top")
@@ -449,8 +451,14 @@ def MaginalPosterior(samplesIn,inputs,labels,bins,quantiles_min,quantiles_max,ti
     #Filter isochrone
     isomini = iso[iso['AppMag']<=inputs['Photometric_limit']]
     #Random numbers for synthetic population
-    PopulationSamplesRN, PhotometricErrorRN = MCMCsampling.Initialization.RandomNumberStarter(inputs['Initial_population_size'],
-                                                                                               inputs['ObsCatalogColumns'])
+    PopulationSamplesRN, PhotometricErrorRN = MCMCsampling.Initialization.RandomNumberStarter(inputs['Initial_population_size'],inputs['ObsCatalogColumns'],inputs['TruncErr'],inputs['Seed'])
+    #Stellar Removal
+    if inputs['StellarRemoval'] == 'LumFunction':
+        RemovalFunction = MCMCsampling.SyntheticPopulation.StellarRemovalLuminosityFun
+    if inputs['StellarRemoval'] == 'CompFermi':
+        RemovalFunction = MCMCsampling.SyntheticPopulation.StellarRemovalCompFermi
+    if inputs['StellarRemoval'] == 'No':
+        RemovalFunction = MCMCsampling.SyntheticPopulation.StellarRemovalCompFermi
     #Empty Dataframe for synthetic population
     syntCMD = DataFrame()
     #Generate synthetic population
@@ -462,7 +470,7 @@ def MaginalPosterior(samplesIn,inputs,labels,bins,quantiles_min,quantiles_max,ti
                                                  inputs['IsochroneColumns'],inputs['Bands_Obs_to_Iso'],
                                                  inputs['Photometric_limit'],
                                                  inputs['Error_coefficients'], 
-                                                 inputs['Completeness_Fermi'],
+                                                 RemovalFunction,inputs['StellarRemovalParams'],
                                                  PopulationSamplesRN, PhotometricErrorRN)
     syntCMD = syntCMD.sample(len(clusterCMD),random_state=inputs['Seed'])
     #FIRST PLOT
@@ -499,14 +507,13 @@ def MaginalPosterior(samplesIn,inputs,labels,bins,quantiles_min,quantiles_max,ti
     #
     #SAVE RESULTS
     #
-    #Fitter parameters
-    results = DataFrame(columns=['name','a','loc','scale','value','error'])
-    results = concat( [results, DataFrame({'name':columns,
-                                             'a':a,
-                                             'loc':loc,
-                                             'scale':scale,
-                                             'value':fit_value,
-                                             'error':fit_error})] )
+    #Fitted parameters
+    results = DataFrame({'name':columns,
+                        'a':a,
+                        'loc':loc,
+                        'scale':scale,
+                        'value':fit_value,
+                        'error':fit_error})
     results.to_csv('projects/{}/results.dat'.format(inputs['Project_name']),sep='\t')
     print('Fitted parameters were stored in {}'.format('projects/{}/results.dat'.format(inputs['Project_name'])))
     #Image

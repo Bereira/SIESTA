@@ -2,7 +2,7 @@
 # Create isochrone grid
 #
 
-def Run(DownloadedModelsPath, IsochronesPath, HeaderSize, FilterColumns, ClipLateEvolution):
+def RunPARSECv3p7(DownloadedModelsPath, IsochronesPath, HeaderSize, FilterColumns, ClipLateEvolution):
     #Import specific libraries
     from glob import glob
     import os
@@ -52,4 +52,50 @@ def Run(DownloadedModelsPath, IsochronesPath, HeaderSize, FilterColumns, ClipLat
     print('All done! Check {} directory'.format(IsochronesPath))
 
             
-        
+
+def RunMISTv1p2(DownloadedModelsPath, IsochronesPath, FilterColumns, ClipLateEvolution):
+    #Import specific libraries
+    from glob import glob
+    import os
+    import pandas as pd
+    from collections import defaultdict
+    from tqdm import tqdm
+    import pickle
+    #Create output file, if it does not exists
+    if not os.path.exists(IsochronesPath):
+        os.makedirs(IsochronesPath)
+    #Read the names of all downloaded files
+    files = glob(DownloadedModelsPath+'/*')
+    print(files)
+    #Create index
+    index = defaultdict(dict)
+    #Iterate over files 
+    print('Iterating over isochrones...')
+    for file in tqdm(files):
+        #Import tables
+        data = pd.read_parquet(file)
+        #Get unique metallicity and ages
+        MH_list = data['[Fe/H]_init'].unique()
+        Age_list = data['log10_isochrone_age_yr'].unique()
+        #Iterate over metallicities and ages
+        for mh in MH_list:
+            for logAge in Age_list:
+                #Select data from specific isochrone
+                data_iso = data[ (data['[Fe/H]_init'] == mh) & (data['log10_isochrone_age_yr'] == logAge)]
+                #Select columns
+                if FilterColumns != 'no':
+                    data_iso = data_iso.loc[:,FilterColumns]
+                #Select rows
+                if ClipLateEvolution == 'yes':
+                    data_iso = data_iso[data_iso['phase']<=4]           
+                #File name
+                filename = 'MH{:.2f}_logAge{:.2f}'.format(mh,logAge).replace('-','n').replace('.','d')
+                #Save file
+                data_iso.reset_index(drop=True).to_csv('{}/{}.dat'.format(IsochronesPath,filename))
+                index[mh][logAge] = filename
+    #Save index
+    with open('{}/index.pkl'.format(IsochronesPath), "wb") as out_file:
+        pickle.dump(index, out_file)
+    #Interact
+    print('All done! Check {} directory'.format(IsochronesPath))
+

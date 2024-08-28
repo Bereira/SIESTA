@@ -3,6 +3,7 @@ import sys ;  sys.path.append('modules')
 import MCMCsampling
 #Import usefull libraries
 from pandas import DataFrame,read_csv
+from numpy import seterr
 from multiprocessing import Pool
 from  emcee import EnsembleSampler
 from emcee.moves import StretchMove
@@ -38,18 +39,18 @@ def logPosterior(parameters):
                                                     inputs['IsochroneColumns'],inputs['Bands_Obs_to_Iso'],
                                                     inputs['Photometric_limit'],
                                                     inputs['Error_coefficients'], 
-                                                    inputs['Completeness_Fermi'],
+                                                    RemovalFunction,inputs['StellarRemovalParams'],
                                                     PopulationSamplesRN, PhotometricErrorRN)
         #Use the estimator to evaluate the population density
         SyntheticGrid = MCMCsampling.Distribution.Evaluate(inputs['Edges_color'], inputs['Edges_magnitude'],
                                                            syntCMD[SyntColl1Band]-syntCMD[SyntColl2Band], syntCMD[SyntMagBand],
                                                            renorm_factor=inputs['Cluster_size']/len(syntCMD))
         #Likelihood
-        logLikelihood = MCMCsampling.MCMCsupport.LikelihoodCalculator(ClusterGrid, SyntheticGrid)
+        logLikelihood = MCMCsampling.MCMCsupport.LikelihoodCalculator(ClusterGrid, SyntheticGrid, WeightsGrid)
     #Fork: if not in range
     else:
         #Negative infinite likelihood
-        logLikelihood = 0
+        logLikelihood = -inf
     #Return likelihood
     return logLikelihood + logPrior
 
@@ -60,7 +61,7 @@ inputs,backend = MCMCsampling.Initialization.Start()
 #Index for isochrones
 isochroneIndex,mh_list,age_list = MCMCsampling.Initialization.GetIsochroneIndex(inputs['Grid_path'])
 #Create random numbers for the synthetic populations
-PopulationSamplesRN, PhotometricErrorRN = MCMCsampling.Initialization.RandomNumberStarter(inputs['Initial_population_size'], inputs['ObsCatalogColumns'],inputs['Seed'])
+PopulationSamplesRN, PhotometricErrorRN = MCMCsampling.Initialization.RandomNumberStarter(inputs['Initial_population_size'],inputs['ObsCatalogColumns'],inputs['TruncErr'],inputs['Seed'])
 
 
 #CLUSTER DATA
@@ -70,6 +71,19 @@ ClusterGrid = loadtxt( 'projects/{}/ClusterGrid.dat'.format(inputs['Project_name
 cluster_size = inputs['Cluster_size']
 #Import filtered CMD
 clusterCMD = read_csv('projects/{}/FilteredCMD.dat'.format(inputs['Project_name']),sep=',')
+#Import Weights
+WeightsGrid = loadtxt( 'projects/{}/WeightsGrid.dat'.format(inputs['Project_name']))
+#Disable error warning
+seterr(divide='ignore',invalid='ignore')
+
+#STELAR REMOVAL RECIPE
+if inputs['StellarRemoval'] == 'LumFunction':
+    RemovalFunction = MCMCsampling.SyntheticPopulation.StellarRemovalLuminosityFun
+if inputs['StellarRemoval'] == 'CompFermi':
+    RemovalFunction = MCMCsampling.SyntheticPopulation.StellarRemovalCompFermi
+if inputs['StellarRemoval'] == 'No':
+    RemovalFunction = MCMCsampling.SyntheticPopulation.StellarRemovalCompFermi
+
 
 #MCMC SAMPLING
 print('MCMC sampling...')
@@ -114,7 +128,7 @@ if __name__ == '__main__':
             #Acceptance fractioin
             af = sampler.acceptance_fraction
             #Convergence tests
-            converged = all(tau * 50 < sampler.iteration)
+            converged = all(tau * 25 < sampler.iteration)
             converged &= all(absolute(tauOLD - tau) / tau < 0.01)
             #Interact 
             i = sampler.iteration

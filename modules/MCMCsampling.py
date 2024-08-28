@@ -102,7 +102,7 @@ class Initialization:
         #New grid
         return index, array(mh_list), array(age_list)
     
-    def RandomNumberStarter(synt_pop_size,ObsBands,seed=1):
+    def RandomNumberStarter(synt_pop_size,ObsBands,TruncErr,seed=1):
         #
         # CREATE RANDOM NUMBERS
         #
@@ -111,6 +111,7 @@ class Initialization:
         # INPUTS
         #   synt_pop_size: initial size for the synthetic populations
         #   ObsBands: dictionary with labels to the Observational bands
+        #   TruncErr: interval (in standard deviations) to truncate added noise to the magnitudes
         #   Seed: integer seed for the random number generator (degault=1)
         #
         # OUTPUTS
@@ -130,7 +131,7 @@ class Initialization:
         def truncated_normal(mean,std,low,up):
             return truncnorm( (low-mean)/std, (up-mean)/std, loc=mean, scale=std)
         #Sample Gaussian random numbers
-        PhotometricErrorRN = [truncated_normal(mean=0,std=1,low=-1,up=1).rvs([synt_pop_size,3],random_state=seed),
+        PhotometricErrorRN = [truncated_normal(mean=0,std=1,low=-TruncErr,up=TruncErr).rvs([synt_pop_size,3],random_state=seed),
                               truncated_normal(mean=0,std=1,low=-3,up=3).rvs([synt_pop_size,3],random_state=seed+1)]
         #Check if there are repetition in bands
         if ObsBands['MagBand'] == ObsBands['ColorBand1']:
@@ -173,7 +174,7 @@ class Distribution:
 class SyntheticPopulation:
     # Functions for creating a synthetic CMD from a given isochrone
     
-    def IsochroneAnalyzer(isochrone,phot_lim,d,extpar,extlaw,Nwanted,binary_fraction,IsoBands):
+    def IsochroneAnalyzer(isochrone,phot_lim,d,extpar,extlaw,Nwanted,binary_fraction,IsoCols):
         #
         # EXTRACT IMPORTANT INFORMATION ABOUT THE ISOCHRONE
         #
@@ -187,7 +188,7 @@ class SyntheticPopulation:
         #   extlaw: dictionary relating the extinction parameter with the extinction coefficient and the color excess
         #   Nwanted: size of the population (single stars + non-resolved binaries) before completeness removal
         #   binary_fraction: fraction of the synthetic population to be composed of non-resolved binaries
-        #   IsoBands: list with the band names in the isochrone files
+        #   IsoCols: list with the column names in the isochrone files
         #
         # OUTPUTS
         #   Nsolo: number of single stars
@@ -199,7 +200,7 @@ class SyntheticPopulation:
         # Import library
         from numpy import array,log10
         #Get names
-        magIso,col1Iso,col2Iso = IsoBands
+        magIso,col1Iso,col2Iso,mini,mass = IsoCols
         #Displace de isochrone according to the distance and extinction parameter
         isochrone['App'+magIso] = isochrone[magIso] + 5*log10(d*1000) - 5 + extpar*extlaw['MagCorrection']
         isochrone['App'+col1Iso] = isochrone[col1Iso] + 5*log10(d*1000) - 5 + extpar*extlaw['ColorCorrection1']
@@ -211,9 +212,9 @@ class SyntheticPopulation:
         # Number of single stars
         Nsolo = Nwanted - Nbin
         # List with the minimum possible masses
-        m_start = array( [isochrone_brighter['Mini'].min()] * Nwanted )
+        m_start = array( [isochrone_brighter[mini].min()] * Nwanted )
         #List with the maximum possible masses
-        m_end = array( [ isochrone_brighter['Mini'].max()] * Nwanted )
+        m_end = array( [ isochrone_brighter[mini].max()] * Nwanted )
         #Return
         return Nsolo, Nbin, m_start, m_end
 
@@ -282,7 +283,7 @@ class SyntheticPopulation:
         #Return
         return masses 
 
-    def InterpolateStars(isochrone,sampled_masses,IsoBands):
+    def InterpolateStars(isochrone,sampled_masses,IsoCols):
         #
         # SAMPLE STARS
         #
@@ -291,7 +292,7 @@ class SyntheticPopulation:
         # INPUTS
         #   isochrone: pandas DataFrame containg the PARSEC isochrone
         #   sampled_masses: 1D array containg the masses that we want to interpolate from the isochrone
-        #   IsoBands: list with the band names in the isochrone files
+        #   IsoCols: list with the column names in the isochrone files
         #
         # OUTPUTS
         #   mag,col1,col2: 1D array containing the sampled magnitudes
@@ -300,16 +301,16 @@ class SyntheticPopulation:
         #Import libraries
         from numpy import interp
         #Get names
-        magIso,col1Iso,col2Iso = IsoBands
+        magIso,col1Iso,col2Iso,mini,mass = IsoCols
         #Interpolate CMD
-        mag = interp(sampled_masses, isochrone['Mini'], isochrone['App'+magIso])
-        col1 = interp(sampled_masses, isochrone['Mini'], isochrone['App'+col1Iso])
-        col2 = interp(sampled_masses, isochrone['Mini'], isochrone['App'+col2Iso])
-        mass = interp(sampled_masses, isochrone['Mini'], isochrone['Mass'])
+        mag = interp(sampled_masses, isochrone[mini], isochrone['App'+magIso])
+        col1 = interp(sampled_masses, isochrone[mini], isochrone['App'+col1Iso])
+        col2 = interp(sampled_masses, isochrone[mini], isochrone['App'+col2Iso])
+        mass = interp(sampled_masses, isochrone[mini], isochrone[mass])
         #Return
         return mag,col1,col2,mass
   
-    def SampleBinaries(syntPop,isochrone,companion_minimum_mass_fraction,Nwanted,Nsolo,Nbin,BinarySamplesRN,IsoBands):
+    def SampleBinaries(syntPop,isochrone,companion_minimum_mass_fraction,Nwanted,Nsolo,Nbin,BinarySamplesRN,IsoCols):
         #
         # SAMPLE BINARIES
         #
@@ -324,7 +325,7 @@ class SyntheticPopulation:
         #   Nsolo: number of single stars
         #   Nbin: Number of companions
         #   BinarySamplesRN: random numbers for sampling the companions (uniformly generated between 0 and 1)
-        #   IsoBands: list with the band names in the isochrone files
+        #   IsoCols: list with the column names in the isochrone files
         #
         # OUTPUTS
         #   Mini_companion: companion initial mass
@@ -341,7 +342,7 @@ class SyntheticPopulation:
             #Return
             return -2.5*log10( 10**(-0.4*mag1) + 10**(-0.4*mag2) )
         #Get names
-        magIso,col1Iso,col2Iso = IsoBands
+        magIso,col1Iso,col2Iso,mini,mass = IsoCols
         # Empty arrays
         Mini_companion = zeros(Nwanted)
         Mass_companion = zeros(Nwanted)
@@ -358,7 +359,7 @@ class SyntheticPopulation:
         Mini_companion[Nsolo:] = BinarySamplesRN[Nsolo:] * (m_end - m_start) + m_start
         #Interpolate the population
         Mag_companion[Nsolo:],Col1_companion[Nsolo:],Col2_companion[Nsolo:],Mass_companion[Nsolo:] = \
-            SyntheticPopulation.InterpolateStars(isochrone,Mini_companion[Nsolo:],IsoBands)
+            SyntheticPopulation.InterpolateStars(isochrone,Mini_companion[Nsolo:],IsoCols)
         # Total magnitudes: starts with the single stars, than combines the magnitudes of the binaries
         MagTotal = syntPop['App{}_single'.format(magIso)].copy()
         Col1Total = syntPop['App{}_single'.format(col1Iso)].copy()
@@ -369,13 +370,13 @@ class SyntheticPopulation:
         #Return
         return Mini_companion,Mag_companion,Col1_companion,Col2_companion,Mass_companion,MagTotal,Col1Total,Col2Total
     
-    def CompletenessRemovalFermi(syntPop,CompInfo,random_numbers,Obs_to_Iso_Bands):
+    def StellarRemovalCompFermi(syntPop,CompInfo,random_numbers,Obs_to_Iso_Bands):
         #
-        # REMOVE STARS BASED COM COMPLETENESS CRITERIUM
+        # REMOVE STARS BASED ON A COMPLETENESS CRITERIUM
         #
         # INPUTS
         #   syntPop: empty pandas DataFrame, to store the synthetic population
-        #   CompInfo: dictionary withFermi function parameters, describing completeness: [FermiMag,Beta,Band]
+        #   CompInfo: dictionary with Fermi function parameters, describing completeness: [FermiMag,Beta,Band]
         #   Obs_to_Iso_Bands: dictionary relating the previous band names
         #   random_numbers: 1D array containing random uniformly generated numbers between 0 and 1 
         #
@@ -385,14 +386,47 @@ class SyntheticPopulation:
         #Import libraries
         from numpy import exp
         # Define Fermi function
-        def FermiFunction(x,xf,beta):
-            return 1 / (1+exp( beta*(x-xf)  ))
+        def FermiFunction(x,x0,beta):
+            return 1 / (1+exp( beta*(x-x0)  ))
         #Define band
         band = Obs_to_Iso_Bands[CompInfo['Band']]
         #Evaluate completeness for synthetic population
-        syntPop['Completeness'] = FermiFunction(syntPop['App{}'.format(band)],CompInfo['FermiMag'],CompInfo['Beta'])
+        completeness = FermiFunction(syntPop['App{}'.format(band)],CompInfo['Mag0'],CompInfo['Beta'])
         #Drop stars randomly, proportionaly to the completeness
-        syntPop.drop( syntPop[ random_numbers > syntPop['Completeness']].index,inplace=True )
+        syntPop.drop( syntPop[ random_numbers > completeness].index,inplace=True )
+        #Return new size
+        return len(syntPop)
+
+    def StellarRemovalLuminosityFun(syntPop,RemovalInfo,random_numbers,Obs_to_Iso_Bands):
+        #
+        # REMOVE STARS BASED ON THE LUMINOSITY FUNCTION
+        #
+        # INPUTS
+        #   syntPop: empty pandas DataFrame, to store the synthetic population
+        #   RemovalInfo: dictionary with the removal parameters
+        #   Obs_to_Iso_Bands: dictionary relating the previous band names
+        #   random_numbers: 1D array containing random uniformly generated numbers between 0 and 1 
+        #
+        # OUTPUTS
+        #   incomplete_size: size of the incomplete population
+        #
+        #Import libraries
+        from numpy import interp,histogram,divide,nan_to_num
+        #Define band
+        band = Obs_to_Iso_Bands[RemovalInfo['Band']]
+        #Evaluate synthetic counts
+        countsSYN,_ = histogram(syntPop['App{}'.format(band)],bins=RemovalInfo['Edges'],density=False)
+        #Observed counts
+        countsOBS = RemovalInfo['Counts_magnitudes']
+        #Renormalization factor
+        renorm_factor = countsSYN[ RemovalInfo['Max_counts_idx'] ]/RemovalInfo['Max_counts']
+        #Evaluate distributions
+        distOBS = renorm_factor * interp(syntPop['App{}'.format(band)],RemovalInfo['Centers'],countsOBS,left=countsOBS[0],right=countsOBS[-1])
+        distSYN = interp(syntPop['App{}'.format(band)],RemovalInfo['Centers'],countsSYN,left=countsSYN[0],right=countsSYN[-1])
+        #Ratio
+        ratio = nan_to_num(divide(distOBS,distSYN) , -1)
+        #Filter
+        syntPop.drop( syntPop[ ratio < random_numbers ].index,inplace=True )
         #Return new size
         return len(syntPop)
     
@@ -450,8 +484,9 @@ class SyntheticPopulation:
     def Generator(syntPop,isochrone,Nwanted,
                   binary_fraction,companion_minimum_mass_fraction,
                   d,extpar,extlaw,
-                  IsoBandsDict,Obs_to_Iso_Bands,
-                  photometric_limit,error_coeffs,CompInfo,
+                  IsoColsDict,Obs_to_Iso_Bands,
+                  photometric_limit,error_coeffs,
+                  RemovalFunction,RemovalParams,
                   PopulationSamplesRN, PhotometricErrorRN):
         #
         # CREATES A SYNTHETIC CMD FROM AN ISOCHRONE
@@ -476,24 +511,27 @@ class SyntheticPopulation:
         #   ObsBands: dictionary with the band names in the observational catalog
         #   IsoBandsDict: dictionary with the band names in the isochrone files
         #   Obs_to_Iso_Bands: dictionary relating the previous band names
-        #   CompInfo: dictionary withFermi function parameters, describing completeness: [FermiMag,Beta,Band]
+        #   RemovalFunction: function for removing stars
+        #   RemovalInfo: dictionary with parameters for removing stars
         #   PopulationSamplesRN: random numbers for sampling the population (uniformly generated between 0 and 1)
         #   PhotometricErrorRN: random numbers for sampling the population (Gaussian generated: mean = 0 ; std = 1)
         #
         #
         #Column names: isochrone
-        magIso = IsoBandsDict['MagBand']
-        col1Iso =IsoBandsDict['ColorBand1']
-        col2Iso =IsoBandsDict['ColorBand2']
-        IsoBands = [magIso,col1Iso,col2Iso]
+        magIso = IsoColsDict['MagBand']
+        col1Iso =IsoColsDict['ColorBand1']
+        col2Iso =IsoColsDict['ColorBand2']
+        mini = IsoColsDict['InitialMass']
+        mass = IsoColsDict['CurrentMass']
+        IsoCols = [magIso,col1Iso,col2Iso,mini,mass]
         # Get basic information from the isochrone
-        Nsolo, Nbin, mass_start, mass_end = SyntheticPopulation.IsochroneAnalyzer(isochrone,photometric_limit,d,extpar,extlaw,Nwanted,binary_fraction,IsoBands)
+        Nsolo, Nbin, mass_start, mass_end = SyntheticPopulation.IsochroneAnalyzer(isochrone,photometric_limit,d,extpar,extlaw,Nwanted,binary_fraction,IsoCols)
         #Sample single star masses
         syntPop['Mini_single'] = SyntheticPopulation.KroupaMassSampling(mass_start,mass_end,
                                                                         PopulationSamplesRN[:,0],
                                                                         Nwanted)        
         syntPop['App{}_single'.format(magIso)],syntPop['App{}_single'.format(col1Iso)],syntPop['App{}_single'.format(col2Iso)],\
-            syntPop['Mass_single'] = SyntheticPopulation.InterpolateStars(isochrone,syntPop['Mini_single'],IsoBands)
+            syntPop['Mass_single'] = SyntheticPopulation.InterpolateStars(isochrone,syntPop['Mini_single'],IsoCols)
         #Mark stars that will be included in non-resolved binary systems
         syntPop['IsBinary'] = [False]*Nsolo + [True]*Nbin        
         #Sample binaries
@@ -506,11 +544,10 @@ class SyntheticPopulation:
                                             isochrone,
                                             companion_minimum_mass_fraction,
                                             Nwanted,Nsolo,Nbin,
-                                            PopulationSamplesRN[:,1],IsoBands)
+                                            PopulationSamplesRN[:,1],IsoCols)
         #Remove stars according to completeness
-        incomplete_size = SyntheticPopulation.CompletenessRemovalFermi(syntPop,CompInfo,PopulationSamplesRN[:,2],Obs_to_Iso_Bands)
-        #Add noise according to the expected photometric error
-        
+        incomplete_size = RemovalFunction(syntPop,RemovalParams,PopulationSamplesRN[:,2],Obs_to_Iso_Bands)
+        #Add noise according to the expected photometric error        
         syntPop[magIso],syntPop[col1Iso],syntPop[col2Iso],\
         syntPop['{}_filled'.format(magIso)],syntPop['{}_filled'.format(col1Iso)],syntPop['{}_filled'.format(col2Iso)],\
         syntPop['{}_error1'.format(magIso)],syntPop['{}_error1'.format(col1Iso)],syntPop['{}_error1'.format(col2Iso)],\
@@ -521,15 +558,12 @@ class SyntheticPopulation:
                                                       error_coeffs,
                                                       PhotometricErrorRN,
                                                       incomplete_size)
-        #(mag,col1,col2,error_coeffs,PhotometricErrorRN,incomplete_size)
         #Add color column
         syntPop['{}-{}'.format(col1Iso,col2Iso)] = syntPop[col1Iso] - syntPop[col2Iso]
         #dd mass column
         syntPop['Mass'] = syntPop['Mass_single'] + syntPop['Mass_companion']
         #Remove stars dimmer than the photometric limit
-        syntPop.drop( syntPop[ syntPop[magIso] > photometric_limit].index,inplace=True )
-        
-        
+        syntPop.drop( syntPop[ syntPop[magIso] > photometric_limit].index,inplace=True )        
         
     
 class MCMCsupport:
@@ -572,7 +606,7 @@ class MCMCsupport:
         #    Prior_Metallicity,Prior_Age,Prior_Distance,Prior_ExtPar,Prior_BinFraction: functions representing the priors for each parameter
         #
         #Import libraries
-        from numpy import inf,log
+        from numpy import inf,log,cos,pi
         #Define function for prior selection
         def SelectFunction(which):
             #Box
@@ -598,6 +632,22 @@ class MCMCsupport:
                         return -inf
                 #Return function
                 return Gauss
+            elif which == 'RaisedCosine':
+                #Define Raised cosine function
+                def RaisedCos(x,params):
+                    mean,std,x0,x1 = params
+                    #Relevant constant
+                    s = std/( 1/3 - 2/pi**2 )**0.5
+                    #New ranges
+                    x0true = max([x0,mean-s])
+                    x1true = min([x1,mean+s])
+                    #Check range
+                    if x0true <= x <=x1true: 
+                        return  log(  0.5/s * ( 1 + cos( (x-mean)/s*pi  ) )  ) + log(s)
+                    else: 
+                        return -inf
+                #Return function
+                return RaisedCos
             elif which == 'SuperGaussian':
             #Define Super-Gaussian function
                 def SuperGauss(x,params):
@@ -628,7 +678,7 @@ class MCMCsupport:
         Prior_BinFraction = SelectFunction(info['BinFraction']['Type'])
         return Prior_Metallicity,Prior_Age,Prior_Distance,Prior_ExtPar,Prior_BinFraction
         
-    def LikelihoodCalculator(Nclu,Nsyn ):
+    def LikelihoodCalculator(Nclu,Nsyn,Weights):
         # EVALUATE LIKELIHOOD
         #
         # Calculates the likelihood function defined in Tremmel+2013
@@ -636,6 +686,7 @@ class MCMCsupport:
         # INPUTS
         #   Nclu: Hess diagram of the observed cluster
         #   Nsyn: Hess diagram of the synthetic population
+        #   Weights: Grid of weights
         #
         # RETURNS
         #   The log-likelihood
@@ -646,4 +697,4 @@ class MCMCsupport:
         def correct(  Nobs, NobsRef, correction ):
             return interp( Nobs, NobsRef, correction )
         #Evaluate the likelihood
-        return sumall( (loggamma( 0.5+Nclu+Nsyn ) - ( 0.5+Nclu+Nsyn )*log(2) - loggamma(0.5+Nsyn) - loggamma( 1+Nclu ) ) ) 
+        return sumall( Weights*(loggamma( 0.5+Nclu+Nsyn ) - ( 0.5+Nclu+Nsyn )*log(2) - loggamma(0.5+Nsyn) - loggamma( 1+Nclu ) ) ) 

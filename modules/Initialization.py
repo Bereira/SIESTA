@@ -399,6 +399,122 @@ def ClusterDensity(clusterCMD,inputs):
     #Return
     return fig, clusterCMD, clusterCMDfilled ,CMDgridFilled
 
+
+def WeightLikelihood(ClusterGrid,clusterCMD,clusterCMDf,inputs):
+    #Import specific libraries
+    from numpy import sum,ones,argmin
+    #Parameters
+    colors = inputs['Edges_color']
+    magnitudes = inputs['Edges_magnitude']
+    band = inputs['ObsCatalogColumns']['MagBand']
+    color = inputs['ObsCatalogColumns']['Color']
+    memb = inputs['ObsCatalogColumns']['MembershipProbability']
+    #Create weights matrix
+    MagWeightsGrid = ones([len(ClusterGrid[:,0]),len(ClusterGrid[0,:])])
+    MembWeightsGrid = ones([len(ClusterGrid[:,0]),len(ClusterGrid[0,:])])
+    WeightsGrid = ones([len(ClusterGrid[:,0]),len(ClusterGrid[0,:])])
+    #
+    # WEIGHT BASED ON MAGNITUDE
+    #
+    #Check for bins with significant number of stars
+    SignificantGrid = ClusterGrid > 1 
+    #Sum grid 
+    MagNum = sum(SignificantGrid,axis=1)
+    #Relative number of points
+    weight_bin = argmin( (magnitudes - inputs['Weight_mag'])**2 )
+    NumBrighter = sum(MagNum[0:weight_bin])
+    NumDimmer = sum(MagNum[weight_bin:])
+    MagWeightsGrid[0:weight_bin,:] = inputs['Weight_mag_factor']*NumDimmer/NumBrighter
+    '''
+    # WEIGHT BASED ON MAGNITUDE
+    #
+    #Check for bins with significant number of stars
+    SignificantGrid = ClusterGrid > 0
+    #Define box
+    weight_magbin0 = argmin( (magnitudes - min(inputs['Weight_mag']))**2 )
+    weight_magbin1 = argmin( (magnitudes - max(inputs['Weight_mag']))**2 )
+    weight_colbin0 = argmin( (colors - min(inputs['Weight_col']))**2 )
+    weight_colbin1 = argmin( (colors - max(inputs['Weight_col']))**2 )
+    #Number of points inside and outside
+    NumIn = sum(SignificantGrid[weight_magbin0:weight_magbin1,weight_colbin0:weight_colbin1])
+    NumOut = sum(SignificantGrid) - NumIn
+    #Add weight
+    MagWeightsGrid *= inputs['Weight_mag_factor']/NumOut*NumIn
+    MagWeightsGrid[weight_magbin0:weight_magbin1,weight_colbin0:weight_colbin1] = 1.0
+    '''
+    #
+    #
+    # WEIGHT BASED ON MEMBERSHIP
+    # 
+    for icol in range(0,len(colors)-1):
+        for imag in range(0,len(magnitudes)-1):
+            if ClusterGrid[imag,icol]>0:
+                #Define bins
+                bins_mag = [magnitudes[imag],magnitudes[imag+1]]
+                bins_col = [colors[icol],colors[icol+1]]
+                #Cut
+                miniCMD = clusterCMDf[ (clusterCMDf[band]>=bins_mag[0])&\
+                                          (clusterCMDf[band]<bins_mag[1])&\
+                                          (clusterCMDf[color]>=bins_col[0])&\
+                                          (clusterCMDf[color]<bins_col[1])]
+                MembWeightsGrid[imag,icol] += miniCMD[memb].mean()
+    #
+    # FINAL WEIGHTS
+    #
+    if 'Memb' in inputs['Weight_type']:
+        WeightsGrid *= MembWeightsGrid
+    if 'Mag' in inputs['Weight_type']:
+        WeightsGrid *= MagWeightsGrid
+    #
+    # PLOT
+    #
+    #Create figure
+    fig,ax = plt.subplots(nrows=1,ncols=3,figsize=(9,5),constrained_layout=True)
+    #
+    # CMD
+    #
+    for i in(0,1,2):
+        sc = ax[i].scatter(clusterCMD[color],clusterCMD[band],c=clusterCMD[memb],rasterized=True)
+        #Colorbar
+        fig.colorbar(sc,ax=ax[i],orientation='horizontal',label='Membership probability')
+        #Labels
+        ax[i].set_xlabel(r'$V-I$')
+        ax[i].set_ylabel(r'$V$')
+        #Ticks
+        ax[i].xaxis.set_minor_locator(AutoMinorLocator())
+        ax[i].yaxis.set_minor_locator(AutoMinorLocator())
+        #Limits
+        ax[i].set_xlim(inputs['Edges_color'][0],inputs['Edges_color'][-1])
+        ax[i].set_ylim(inputs['Edges_magnitude'][-1],inputs['Edges_magnitude'][0])
+        #Ticks
+        ax[i].set_xticks(inputs['Edges_color'],minor=True) 
+        ax[i].set_yticks(inputs['Edges_magnitude'],minor=True)
+        ax[i].tick_params(axis='both',which='minor',colors='None')
+        #Grid
+        ax[i].grid(which='minor',c='tab:grey',ls=':')
+        ax[i].xaxis.remove_overlapping_locs = False
+        ax[i].yaxis.remove_overlapping_locs = False
+    #
+    # WEIGHTS
+    #
+    #Magnitude
+    cm = ax[0].imshow( MagWeightsGrid, cmap='Blues',
+                     extent = [colors[0],colors[-1],magnitudes[-1],magnitudes[0]],aspect='auto')
+    #Colorbar
+    fig.colorbar(cm,ax=ax[0])
+    #Likelihood
+    cm = ax[1].imshow( MembWeightsGrid, cmap='Reds',
+                     extent = [colors[0],colors[-1],magnitudes[-1],magnitudes[0]],aspect='auto',
+                      vmin=MembWeightsGrid[MembWeightsGrid>0].min())
+    #Colorbar
+    fig.colorbar(cm,ax=ax[1],extend='min')
+    #Final
+    cm = ax[2].imshow( WeightsGrid, cmap='Purples',
+                     extent = [colors[0],colors[-1],magnitudes[-1],magnitudes[0]],aspect='auto')
+    #Colorbar
+    fig.colorbar(cm,ax=ax[2])
+    return fig,WeightsGrid
+
 def ImportIsochrone(clusterCMD,inputs,pop_params,isochroneIndex):
     #Import libraries
     from pandas import read_csv
@@ -447,7 +563,7 @@ def ImportIsochrone(clusterCMD,inputs,pop_params,isochroneIndex):
     Amag =  extpar*inputs['ExtinctionLaw']['MagCorrection']
     Acol1 =  extpar*inputs['ExtinctionLaw']['ColorCorrection1']
     Acol2 =  extpar*inputs['ExtinctionLaw']['ColorCorrection2']
-    CE = extpar*(Acol1-Acol2)
+    CE = Acol1-Acol2
     #Print
     print('Extinction parameter ({}): {}'.format(inputs['ExtinctionLaw']['ExtinctionParameter'],extpar))
     print('\t Extinction coefficient in the {} band: {}'.format(magIso,Amag ))
@@ -481,60 +597,100 @@ def ImportIsochrone(clusterCMD,inputs,pop_params,isochroneIndex):
     #Return figure
     return fig
 
-def FermiCompleteness(clusterCMD,inputs):
+def StellarRemoval(clusterCMD,inputs):
     #Import libraries
     from astropy.visualization import hist
-    from numpy import exp,linspace,array
-    #
-    # DEFINE COLUMN NAMES
-    #
-    mag = inputs['ObsCatalogColumns']['MagBand']
-    #Band
-    band = inputs['Completeness_Fermi']['Band']
+    from numpy import exp,linspace,array,inf,argmax,histogram
     #Define Fermi Function
-    def FermiFunction(x,xf,beta):
-        return 1 / (1+exp( beta*(x-xf)  ))
+    def FermiFunction(x,x0,beta):
+        return 1 / (1+exp( beta*(x-x0)  ))
     #Filter photometric limit
-    clusterCMDbrighter = clusterCMD[ clusterCMD[mag] <= inputs['Photometric_limit'] ]
-    #Create figure
-    fig,ax = plt.subplots(nrows=1,ncols=1,constrained_layout=True)
-    #Histogram
-    h = hist(clusterCMDbrighter[band],bins='knuth',color='tab:blue',label='Observed number',align='mid',histtype='stepfilled')
-    #Bin center and width
-    bins = array( [ 0.5*(h[1][i]+h[1][i+1]) for i in range(0,len(h[1])-1) ] )
-    width = h[1][1] - h[1][0]
-    #Compensate completeness
-    corrected_num = h[0] /  FermiFunction( bins, inputs['Completeness_Fermi']['FermiMag'],inputs['Completeness_Fermi']['Beta'])
-    #Plot
-    ax.bar( bins, corrected_num,width=width,edgecolor='tab:red',color='None',zorder=-1,align='center' ,label=r'Observerd number $\times$ Completeness$^{-1}$'  )
-    #Fermi function
-    axt = ax.twinx()
-    magnitudes = linspace( clusterCMD[band].min(),clusterCMD[band].max(),1000 )
-    axt.plot( magnitudes,FermiFunction(magnitudes,inputs['Completeness_Fermi']['FermiMag'],inputs['Completeness_Fermi']['Beta']),
-             c='tab:red')
-    #Interact
-    Nmembers = sum(h[0])
-    Ncomplete = sum(corrected_num)
-    print('Number of members: {}'.format(Nmembers))
-    print('Completeness corrected number: ~{:.0f}'.format(Ncomplete))
-    print('\t(every star counts as 1/completeness)')
-    print('Expected loss: ~{:.2f}%'.format( (Ncomplete-Nmembers)/Nmembers*100 ))
-    #Legend
-    ax.legend(loc='upper right')
+    clusterCMDbrighter = clusterCMD[ clusterCMD[inputs['ObsCatalogColumns']['MagBand']] <= inputs['Photometric_limit'] ]
+    #Fork based on user selection
+    if inputs['StellarRemoval'] == 'LumFunction':
+        inputs['StellarRemovalParams'] = {}
+        #Get edges
+        edges = inputs['Edges_magnitude']
+        #Define band 
+        inputs['StellarRemovalParams']['Band'] = inputs['ObsCatalogColumns']['MagBand']
+        band =  inputs['ObsCatalogColumns']['MagBand']
+        #Get counts
+        inputs['StellarRemovalParams']['Counts_magnitudes'],_ = histogram(clusterCMD[band],bins=edges,density=False)
+        #Get center and edges
+        inputs['StellarRemovalParams']['Centers'] = [ 0.5*(edges[i]+edges[i+1]) for i in range(0,len(edges)-1)  ]
+        inputs['StellarRemovalParams']['Edges'] =  edges
+        #Find maximum
+        inputs['StellarRemovalParams']['Max_counts_idx'] = argmax(inputs['StellarRemovalParams']['Counts_magnitudes'])
+        inputs['StellarRemovalParams']['Max_counts'] = max(inputs['StellarRemovalParams']['Counts_magnitudes'])
+    #Fork based on user selection
+    if inputs['StellarRemoval'] == 'CompFermi':
+        inputs['StellarRemovalParams'] = {}
+        print('Insert the parameters...')
+        inputs['StellarRemovalParams']['Mag0'] = float(input('\tmag0 = '))
+        inputs['StellarRemovalParams']['Beta'] = float(input('\tbeta = '))
+        inputs['StellarRemovalParams']['Band'] = input('\tBand = ')
+        #Define band 
+        band =  inputs['StellarRemovalParams']['Band']
+        print('Done!')
+        #Fork based on user selection
+    if inputs['StellarRemoval'] == 'No':
+        inputs['StellarRemovalParams'] = {}
+        inputs['StellarRemovalParams']['Mag0'] = inputs['Photometric_limit']+5
+        inputs['StellarRemovalParams']['Beta'] = inf
+        inputs['StellarRemovalParams']['Band'] = inputs['ObsCatalogColumns']['MagBand']
+        #Define band 
+        band =  inputs['StellarRemovalParams']['Band']
+    #
+    # FIGURE
+    #
+    if (inputs['StellarRemoval'] == 'CompFermi') or (inputs['StellarRemoval'] == 'No'):
+        #Create figure
+        fig,ax = plt.subplots(nrows=1,ncols=1,constrained_layout=True)
+        #Histogram
+        h = hist(clusterCMDbrighter[band],bins='knuth',color='tab:blue',label='Observed number',align='mid',histtype='stepfilled')
+        #Bin center and width
+        bins = array( [ 0.5*(h[1][i]+h[1][i+1]) for i in range(0,len(h[1])-1) ] )
+        width = h[1][1] - h[1][0]
+        #Compensate completeness
+        corrected_num = h[0] /  FermiFunction( bins, inputs['StellarRemovalParams']['Mag0'],inputs['StellarRemovalParams']['Beta'])
+        #Plot
+        ax.bar( bins, corrected_num,width=width,edgecolor='tab:red',color='None',zorder=-1,align='center' ,label=r'Observerd number $\times$ Completeness$^{-1}$'  )
+        #Fermi function
+        axt = ax.twinx()
+        magnitudes = linspace( clusterCMD[band].min(),clusterCMD[band].max(),1000 )
+        axt.plot( magnitudes,FermiFunction(magnitudes,inputs['StellarRemovalParams']['Mag0'],inputs['StellarRemovalParams']['Beta']),
+                c='tab:red')
+        #Interact
+        Nmembers = sum(h[0])
+        Ncomplete = sum(corrected_num)
+        print('Number of members: {}'.format(Nmembers))
+        print('Completeness corrected number: ~{:.0f}'.format(Ncomplete))
+        print('\t(every star counts as 1/completeness)')
+        print('Expected loss: ~{:.2f}%'.format( (Ncomplete-Nmembers)/Nmembers*100 ))
+        #Legend
+        ax.legend(loc='upper right')
+        #Labels
+        axt.tick_params(axis='y', labelcolor='tab:red')
+        axt.set_ylabel('Completeness',color='tab:red')
+        #Ticks
+        axt.yaxis.set_minor_locator(AutoMinorLocator())
+    if inputs['StellarRemoval'] == 'LumFunction':
+        #Create figure
+        fig,ax = plt.subplots(nrows=1,ncols=1,constrained_layout=True)
+        #Plot
+        _ = hist(clusterCMD['V'],bins=edges,density=False,color='tab:blue',label='Observed number',align='mid',histtype='stepfilled')
     #Invert axis
     ax.invert_xaxis()
     #Labels
     ax.tick_params(axis='y', labelcolor='tab:blue')
-    axt.tick_params(axis='y', labelcolor='tab:red')
     ax.set_ylabel('Number of cluster stars',color='tab:blue')
-    axt.set_ylabel('Completeness',color='tab:red')
     ax.set_xlabel(r'${}$'.format(band))
     #Ticks
     ax.xaxis.set_minor_locator(AutoMinorLocator())
     ax.yaxis.set_minor_locator(AutoMinorLocator())
-    axt.yaxis.set_minor_locator(AutoMinorLocator())
     #Return figure
     return fig
+
 
 def ErrorCurve(clusterCMD,inputs):
     #Import specific libraries
@@ -587,9 +743,10 @@ def ErrorCurve(clusterCMD,inputs):
 def SyntheticPopulation(clusterCMD,ClusterGrid,inputs,isochroneIndex,pop_params):
     #Import libraries
     import MCMCsampling
-    from numpy import exp,inf,log10
+    from numpy import inf,log10
     from pandas import DataFrame
     from pandas import read_csv
+    from astropy.visualization import hist
     #
     # DEFINE COLUMN NAMES
     #
@@ -603,7 +760,7 @@ def SyntheticPopulation(clusterCMD,ClusterGrid,inputs,isochroneIndex,pop_params)
     colIso = '{}-{}'.format(col1Iso,col2Iso)
     inputs['IsochroneColumns']['Color'] = colIso
     #
-    # CREATE SYNTHETIC POPULATION
+    # CREATE FULL SYNTHETIC POPULATION
     #
     # Isochrone Index
     isoIndex, mh_list,age_list = isochroneIndex
@@ -614,12 +771,10 @@ def SyntheticPopulation(clusterCMD,ClusterGrid,inputs,isochroneIndex,pop_params)
     #Isochrone
     iso = read_csv('{}/{}.dat'.format(inputs['Grid_path'],isoIndex[mh][age]),sep=',')
     #Random numbers for synthetic population
-    PopulationSamplesRN, PhotometricErrorRN = MCMCsampling.Initialization.RandomNumberStarter(inputs['Initial_population_size'],
-                                                                                               inputs['ObsCatalogColumns'])
-    #Empty Dataframe for synthetic population
-    syntCMD = DataFrame()
-    #Generate synthetic population
-    MCMCsampling.SyntheticPopulation.Generator(syntCMD,
+    PopulationSamplesRN, PhotometricErrorRN = MCMCsampling.Initialization.RandomNumberStarter(inputs['Initial_population_size'],inputs['ObsCatalogColumns'],inputs['TruncErr'])
+    #Generate complete synthetic population
+    syntCMDfull = DataFrame()
+    MCMCsampling.SyntheticPopulation.Generator(syntCMDfull,
                                                  iso.copy(), 
                                                  inputs['Initial_population_size'],
                                                  binf, inputs['Companion_min_mass_fraction'],
@@ -627,22 +782,25 @@ def SyntheticPopulation(clusterCMD,ClusterGrid,inputs,isochroneIndex,pop_params)
                                                  inputs['IsochroneColumns'],inputs['Bands_Obs_to_Iso'],
                                                  inputs['Photometric_limit'],
                                                  inputs['Error_coefficients'], 
-                                                 {'FermiMag': inputs['Photometric_limit']+1,'Beta':inf,'Band':magObs },
+                                                 MCMCsampling.SyntheticPopulation.StellarRemovalCompFermi,
+                                                 {'Mag0':inputs['Photometric_limit']+5,'Beta':inf,'Band':magObs},
                                                  PopulationSamplesRN, PhotometricErrorRN)
     #
-    # INCOMPLETE POPULATION
+    # STELLAR REMOVAL
     #
-    # Define Fermi function
-    def FermiFunction(x,xf,beta):
-        return 1 / (1+exp( beta*(x-xf)  ))
-    #Evaluate completeness for synthetic population
-    syntCMD['Completeness'] = FermiFunction(syntCMD['App{}'.format( inputs['Bands_Obs_to_Iso'][inputs['Completeness_Fermi']['Band']])],
-                                            inputs['Completeness_Fermi']['FermiMag'],
-                                            inputs['Completeness_Fermi']['Beta'])
-    #Drop stars randomly, proportionaly to the completeness
-    syntCMD['Keep'] =  PopulationSamplesRN[:len(syntCMD),2] <= syntCMD['Completeness']
-    #Final population
-    finalCMD = syntCMD[syntCMD['Keep']].copy()
+    #Fork based on user selection
+    if inputs['StellarRemoval'] == 'LumFunction':
+        RemovalFunction = MCMCsampling.SyntheticPopulation.StellarRemovalLuminosityFun
+    if inputs['StellarRemoval'] == 'CompFermi':
+        RemovalFunction = MCMCsampling.SyntheticPopulation.StellarRemovalCompFermi
+    if inputs['StellarRemoval'] == 'No':
+        RemovalFunction = MCMCsampling.SyntheticPopulation.StellarRemovalCompFermi
+    #Generate incomplete synthetic population
+    finalCMD = syntCMDfull.copy()
+    _ = RemovalFunction(finalCMD,inputs['StellarRemovalParams'],PopulationSamplesRN[:len(syntCMDfull),2],inputs['Bands_Obs_to_Iso'])   
+    #
+    # MANAGE ISOCHRONES
+    #
     #Displace isochrone
     mu = 5*log10( d*1000 ) - 5 + extpar*inputs['ExtinctionLaw']['MagCorrection']
     CE = extpar*(inputs['ExtinctionLaw']['ColorCorrection1']-inputs['ExtinctionLaw']['ColorCorrection2'])
@@ -670,7 +828,6 @@ def SyntheticPopulation(clusterCMD,ClusterGrid,inputs,isochroneIndex,pop_params)
     #Sample population
     sampleCMD = finalCMD.sample(n=int(inputs['Cluster_size']),random_state=inputs['Seed'])
     #Scatter
-    
     ax[0].scatter(sampleCMD[colIso],sampleCMD[magIso],facecolor='None',edgecolor='tab:red',label='Synt.',rasterized=True)
     ax[0].scatter(clusterCMD[colObs],clusterCMD[magObs],facecolor='None',edgecolor='tab:blue',label='Obs.',rasterized=True)
     ax[0].legend()
@@ -691,47 +848,59 @@ def SyntheticPopulation(clusterCMD,ClusterGrid,inputs,isochroneIndex,pop_params)
     #
     # PLOT PROCESS
     #
-    ax = FIGprocess.subplots(nrows=2,ncols=2,sharex=True,sharey=True)
+    ax = FIGprocess.subplots(nrows=2,ncols=2)
     #Iterate over plots
     for i in (0,1):
         for j in (0,1):
-            #Isochrone
-            ax[i,j].plot(isomini['AppColor'],isomini['AppMag'],c='k',ls=':')
-            #Label
-            ax[i,j].set_xlabel(r'${}$'.format(colObs))
-            ax[i,j].set_ylabel(r'${}$'.format(magObs))
+            #Ignore one plot
+            if not (i == 1) & (j == 0):
+                #Isochrone
+                ax[i,j].plot(isomini['AppColor'],isomini['AppMag'],c='k',ls=':')
+                #Label
+                ax[i,j].set_xlabel(r'${}$'.format(colObs))
+                ax[i,j].set_ylabel(r'${}$'.format(magObs))
+                #Invert axis
+                ax[i,j].invert_yaxis()
             #Ticks
             ax[i,j].xaxis.set_minor_locator(AutoMinorLocator())
             ax[i,j].yaxis.set_minor_locator(AutoMinorLocator())
-        #Invert axis
-    ax[0,0].invert_yaxis()
     #IMF SAMPLING
     ax[0,0].set_title('IMF')
-    ax[0,0].scatter(syntCMD['App{}_single'.format(col1Iso)]-syntCMD['App{}_single'.format(col2Iso)],
-                    syntCMD['App{}_single'.format(magIso)],marker='.',s=50,c='tab:purple',
+    ax[0,0].scatter(syntCMDfull['App{}_single'.format(col1Iso)]-syntCMDfull['App{}_single'.format(col2Iso)],
+                    syntCMDfull['App{}_single'.format(magIso)],marker='.',s=50,c='tab:purple',
                    rasterized=True)
     ax[0,0].plot([],[],c='k',ls=':',label='Isochrone')
     ax[0,0].scatter([],[],marker='o',c='tab:purple',label='Single stars')
     ax[0,0].legend(loc='upper left')
     #BINARIES
     ax[0,1].set_title('Binaries')
-    bins = syntCMD[syntCMD['IsBinary']]
-    solo = syntCMD[~ syntCMD['IsBinary']]
+    bins = syntCMDfull[syntCMDfull['IsBinary']]
+    solo = syntCMDfull[~ syntCMDfull['IsBinary']]
     ax[0,1].scatter(solo['App{}_single'.format(col1Iso)]-solo['App{}_single'.format(col2Iso)],solo['App{}_single'.format(magIso)],marker='.',s=50,c='tab:purple',rasterized=True)
     ax[0,1].scatter(bins['App{}'.format(col1Iso)]-bins['App{}'.format(col2Iso)],bins['App{}'.format(magIso)],marker='.',s=50,c='tab:green',rasterized=True)
     ax[0,1].scatter([],[],marker='o',c='tab:green',label='Binaries')
     ax[0,1].legend()
-    #COMPLETENESS
-    ax[1,0].set_title('Completeness')
-    bins = syntCMD[(syntCMD['Keep']) & (syntCMD['IsBinary'])]
-    solo = syntCMD[(syntCMD['Keep']) & ~(syntCMD['IsBinary'])]
-    rejected = syntCMD[~(syntCMD['Keep'])]
-    ax[1,0].scatter(solo['App{}_single'.format(col1Iso)]-solo['App{}_single'.format(col2Iso)],solo['App{}_single'.format(magIso)],marker='.',s=50,c='tab:purple',rasterized=True)
-    ax[1,0].scatter(bins['App{}'.format(col1Iso)]-bins['App{}'.format(col2Iso)],bins['App{}'.format(magIso)],marker='.',s=50,c='tab:green',rasterized=True)
-    ax[1,0].scatter(rejected['App{}'.format(col1Iso)]-rejected['App{}'.format(col2Iso)],rejected['App{}'.format(magIso)],marker='.',s=50,c='tab:orange',rasterized=True)
-    ax[1,0].scatter([],[],marker='o',c='tab:orange',label='Removed')
-    ax[1,0].legend()
+    #STELLAR REMOVAL
+    ax[1,0].set_title('Stellar Removal')
+    #Bands
+    compBandOBS = inputs['StellarRemovalParams']['Band']
+    compBandSYN = inputs['Bands_Obs_to_Iso'][compBandOBS]
+    idx = clusterCMD[magObs] <= inputs['Photometric_limit']
+    #Histograms
+    _,edges,_ = hist(clusterCMD.loc[idx][compBandOBS],bins='knuth',ax=ax[1,0],density=True,histtype='stepfilled',color='tab:blue',alpha=0.5,
+                     label='Obs.')
+    _ = hist(finalCMD[compBandSYN],bins=edges,ax=ax[1,0],density=True,histtype='stepfilled',color='tab:red',alpha=0.5,
+             label='New synt.')
+    _ = hist(syntCMDfull[compBandSYN],bins=edges,ax=ax[1,0],density=True,histtype='step',color='tab:red',ls='--',
+             label='Old synt.')
+    #Labels
+    ax[1,0].set_ylabel('Density')
+    ax[1,0].set_xlabel(compBandOBS)
+    #Legend
+    ax[1,0].legend( fontsize='small' )
     #ERRORS
+    bins = finalCMD[finalCMD['IsBinary']]
+    solo = finalCMD[~finalCMD['IsBinary']]
     ax[1,1].set_title('Photometric error')
     ax[1,1].scatter(solo[colIso],solo[magIso],marker='.',s=50,c='tab:purple',rasterized=True)
     ax[1,1].scatter(bins[colIso],bins[magIso],marker='.',s=50,c='tab:green',rasterized=True)
@@ -748,6 +917,7 @@ def SyntheticPopulation(clusterCMD,ClusterGrid,inputs,isochroneIndex,pop_params)
                                                   finalCMD['{}_filled'.format(magIso)],
                                                   renorm_factor=inputs['Cluster_size']/len(finalCMD))
     
+    
     #Color limits
     cmin = min( [ SyntGrid.min(),ClusterGrid.min()  ] )
     cmax = max( [ SyntGrid.max(),ClusterGrid.max()  ] )
@@ -763,12 +933,12 @@ def SyntheticPopulation(clusterCMD,ClusterGrid,inputs,isochroneIndex,pop_params)
     #Titles
     ax[0].set_title('Observed')
     ax[1].set_title('Synthetic')
-    ax[2].set_title(r'Obs.$-$Synt.')
-    
+    ax[2].set_title(r'Obs.$-$Synt.')    
     #Colorbar
     fig.colorbar(hist1,ax=ax[0],orientation='horizontal',label='Counts')
     fig.colorbar(hist2,ax=ax[1],orientation='horizontal',label='Counts')
     fig.colorbar(hist3,ax=ax[2],orientation='horizontal',label=r'Counts')
+
     #Iterate over plots
     for i in (0,1,2):
         #Label
@@ -780,7 +950,7 @@ def SyntheticPopulation(clusterCMD,ClusterGrid,inputs,isochroneIndex,pop_params)
     
 def Priors(inputs,mh_list,age_list):
     #Import libraries
-    from numpy import linspace,inf,exp,log
+    from numpy import linspace,inf,exp,log,cos,pi
     #Define functions
     def SelectFunction(which):
         #Box
@@ -806,6 +976,33 @@ def Priors(inputs,mh_list,age_list):
                     return -inf
             #Return function
             return Gauss,params[2:]
+        elif which == 'RaisedCosine':
+            #Define Raised cosine function
+            def RaisedCos(x,params):
+                mean,std,x0,x1 = params
+                #Relevant constant
+                s = std/( 1/3 - 2/pi**2 )**0.5
+                #New ranges
+                x0true = max([x0,mean-s])
+                x1true = min([x1,mean+s])
+                #Check range
+                if x0true <= x <=x1true: 
+                    return  log(  0.5/s * ( 1 + cos( (x-mean)/s*pi  ) )  )  + log(s)
+                else: 
+                    return -inf
+            #Return function
+            return RaisedCos,params[2:]
+        elif which == 'SuperGaussian':
+            #Define Super-Gaussian function
+            def SuperGauss(x,params):
+                    mean,std,x0,x1 = params
+                    #Check range
+                    if x0 <= x <=x1: 
+                        return  -0.5 * ( (x-mean)/std )**10
+                    else:
+                        return -inf
+                #Return function
+            return SuperGauss,params[2:]
         elif which == 'LogNormal':
             def LogNorm(x,params):
                 mu,sig,x0,x1 = params
@@ -919,7 +1116,7 @@ def Priors(inputs,mh_list,age_list):
     
     
 def StartingWalkers(inputs,mh_list,age_list):
-    from numpy import linspace,meshgrid,inf,exp,array,log
+    from numpy import linspace,meshgrid,inf,exp,array,log,cos,pi
     from matplotlib.gridspec import GridSpec
     #Number of walkers
     walker_num = inputs['Walkers_start']['Metallicity']['Number']*\
@@ -1011,6 +1208,44 @@ def StartingWalkers(inputs,mh_list,age_list):
                     return -inf
             #Return function
             return Gauss,params[2:]
+        elif which == 'RaisedCosine':
+            #Define Raised cosine function
+            def RaisedCos(x,params):
+                mean,std,x0,x1 = params
+                #Relevant constant
+                s = std/( 1/3 - 2/pi**2 )**0.5
+                #New ranges
+                x0true = max([x0,mean-s])
+                x1true = min([x1,mean+s])
+                #Check range
+                if x0true <= x <=x1true: 
+                    return  log(  0.5/s * ( 1 + cos( (x-mean)/s*pi  ) )  ) + log(s)
+                else: 
+                    return -inf
+            #Return function
+            return RaisedCos,params[2:]
+        elif which == 'RaisedCosine':
+            #Define Super-Gaussian function
+            def SuperGauss(x,params):
+                    mean,std,x0,x1 = params
+                    #Check range
+                    if x0 <= x <=x1: 
+                        return  -0.5 * ( (x-mean)/std )**10
+                    else:
+                        return -inf
+            #Return function
+            return SuperGauss,params[2:]
+        elif which == 'SuperGaussian':
+            #Define Super-Gaussian function
+            def SuperGauss(x,params):
+                    mean,std,x0,x1 = params
+                    #Check range
+                    if x0 <= x <=x1: 
+                        return  -0.5 * ( (x-mean)/std )**10
+                    else:
+                        return -inf
+            #Return function
+            return SuperGauss,params[2:]
         elif which == 'LogNormal':
             def LogNorm(x,params):
                 mu,sig,x0,x1 = params
@@ -1080,7 +1315,7 @@ def StartingWalkers(inputs,mh_list,age_list):
     
         
 
-def SaveAll(inputs,figures,clusterCMD,ClusterGrid):
+def SaveAll(inputs,figures,clusterCMD,ClusterGrid,WeightsGrid):
     #Import libraries
     from numpy import savetxt
     from os.path import exists
@@ -1120,6 +1355,9 @@ def SaveAll(inputs,figures,clusterCMD,ClusterGrid):
     #Save CMD grid
     filename = 'projects/{}/ClusterGrid.dat'.format(inputs['Project_name'])
     savetxt(filename,ClusterGrid)
+    #Save weights grid
+    filename = 'projects/{}/WeightsGrid.dat'.format(inputs['Project_name'])
+    savetxt(filename,WeightsGrid)
     #Interact
     print('Inputs saved! Check files in projects/{}'.format(inputs['Project_name']))
     print('\t inputs.dat and inputs.pkl contain the choosen inputs')
