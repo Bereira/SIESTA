@@ -9,7 +9,18 @@ The current version of the code uses isochrones from the [PARSEC-COLIBRI databas
 `SIESTA` is available in the GNU General Public License, version 3.0 (more details in the LICENSE file). If you use SIESTA, we kindly ask that you cite the original paper:
 
 ```
-Insert @bibtex here
+@article{10.1093/mnras/stae2055,
+    author = {Ferreira, Bernardo P L and Jr., João F C Santos and Dias, Bruno and Maia, Francisco F S and Kerber, Leandro O and Gardin, João Francisco and Oliveira, Raphael A P and Westera, Pieter and Rocha, João Pedro S and Souza, Stefano O and Hernandez-Jimenez, Jose A and Santrich, Orlando Katime and Villegas, Angeles Pérez and Garro, Elisa R and Baume, Gustavo L and Fernández-Trincado, José G and de Bórtoli, Bruno and Parisi, Maria Celeste and Bica, Eduardo},
+    title = "{The VISCACHA Survey – XI. Benchmarking SIESTA: a new synthetic CMD fitting code}",
+    journal = {Monthly Notices of the Royal Astronomical Society},
+    pages = {stae2055},
+    year = {2024},
+    month = {08},
+    issn = {0035-8711},
+    doi = {10.1093/mnras/stae2055},
+    url = {https://doi.org/10.1093/mnras/stae2055},
+    eprint = {https://academic.oup.com/mnras/advance-article-pdf/doi/10.1093/mnras/stae2055/58986283/stae2055.pdf},
+}
 ```
 
 ## Setting up your environment
