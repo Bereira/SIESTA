@@ -678,7 +678,7 @@ def StellarRemoval(clusterCMD,inputs):
         #Create figure
         fig,ax = plt.subplots(nrows=1,ncols=1,constrained_layout=True)
         #Plot
-        _ = hist(clusterCMD['V'],bins=edges,density=False,color='tab:blue',label='Observed number',align='mid',histtype='stepfilled')
+        _ = hist(clusterCMD[band],bins=edges,density=False,color='tab:blue',label='Observed number',align='mid',histtype='stepfilled')
     #Invert axis
     ax.invert_xaxis()
     #Labels
