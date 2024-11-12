@@ -478,8 +478,8 @@ def WeightLikelihood(ClusterGrid,clusterCMD,clusterCMDf,inputs):
         #Colorbar
         fig.colorbar(sc,ax=ax[i],orientation='horizontal',label='Membership probability')
         #Labels
-        ax[i].set_xlabel(r'$V-I$')
-        ax[i].set_ylabel(r'$V$')
+        ax[i].set_xlabel(r'${}$'.format(color))
+        ax[i].set_ylabel(r'${}$'.format(band))
         #Ticks
         ax[i].xaxis.set_minor_locator(AutoMinorLocator())
         ax[i].yaxis.set_minor_locator(AutoMinorLocator())
